@@ -39,6 +39,9 @@ build:
 	go fmt
 	go build
 
+test: build
+	go test check
+
 i18n:
 	rm -rf locale
 	git clone -b torcheck https://git.torproject.org/translation.git locale
@@ -52,4 +55,4 @@ i18n:
 		fi \
 	done
 
-.PHONY: start build i18n
+.PHONY: start build i18n test
