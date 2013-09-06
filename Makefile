@@ -1,6 +1,7 @@
 SHELL := /bin/bash
 
 export GOPATH := $(CURDIR):$(GOPATH)
+export TORCHECKBASE := $(CURDIR)/
 
 start: data/exit-policies
 	@./check
@@ -41,6 +42,9 @@ build:
 
 test: build
 	go test check
+
+bench: build
+	go test check -benchtime 5s -bench .
 
 i18n:
 	rm -rf locale

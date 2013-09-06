@@ -8,6 +8,12 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
+)
+
+var (
+	// locales map
+	Locales = getLocaleList()
 )
 
 func UpToDate(r *http.Request) bool {
@@ -147,9 +153,10 @@ func fetchTranslationLocales() (map[string]locale, error) {
 
 // Get a list of all languages installed in our locale folder with translations if available
 func getInstalledLocales(webLocales map[string]locale, nameTranslations map[string]string) map[string]string {
-	localFiles, err := ioutil.ReadDir("locale")
+	localFiles, err := ioutil.ReadDir(os.ExpandEnv("${TORCHECKBASE}locale"))
 	if err != nil {
-		log.Fatal("No locales found in './locale'. Try running 'make i18n'.")
+		log.Print("No locales found in 'locale'. Try running 'make i18n'.")
+		log.Fatal(err)
 	}
 
 	locales := make(map[string]string, len(localFiles))
