@@ -27,15 +27,29 @@ type Exits struct {
 	UpdateTime time.Time
 	ReloadChan chan os.Signal
 	TorIPs     map[string]bool
+	PortCache  map[uint16]intstab.IntervalSlice
 }
 
-func (e *Exits) IsAllowed(address net.IP, port int, cb func([]byte)) {
-	rules, err := e.List.Intersect(uint16(port))
+func (e *Exits) GetSortedIntervals(port uint16) (rules intstab.IntervalSlice, err error) {
+	rules, _ = e.PortCache[port]
+
+	if len(rules) < 1 {
+		rules, err = e.List.Intersect(port)
+		if err != nil {
+			return // TODO: Return error
+		}
+		sort.Sort(OrderedRuleIntervalSlice(rules))
+		e.PortCache[port] = rules
+	}
+
+	return
+}
+
+func (e *Exits) IsAllowed(address net.IP, port uint16, cb func([]byte)) {
+	rules, err := e.GetSortedIntervals(port)
 	if err != nil {
 		return // TODO: Return error
 	}
-
-	sort.Sort(OrderedRuleIntervalSlice(rules))
 
 	// Keep track of the last policy id to have gotten a result
 	// The sorted rules need to be ordered by Policy.Id (Ascending)
@@ -61,7 +75,7 @@ func (e *Exits) Dump(w io.Writer, ip string, port int) {
 	if address == nil || !ValidPort(port) {
 		return // TODO: Return error
 	}
-	e.IsAllowed(address, port, func(ip []byte) {
+	e.IsAllowed(address, uint16(port), func(ip []byte) {
 		w.Write(ip)
 	})
 }
@@ -71,7 +85,7 @@ var DefaultTarget = AddressPort{"38.229.70.31", 443}
 func (e *Exits) PreComputeTorList() {
 	newmap := make(map[string]bool, len(e.TorIPs))
 	addr := net.ParseIP(DefaultTarget.Address)
-	e.IsAllowed(addr, DefaultTarget.Port, func(ip []byte) {
+	e.IsAllowed(addr, uint16(DefaultTarget.Port), func(ip []byte) {
 		newmap[string(ip[:len(ip)-1])] = true
 	})
 	e.TorIPs = newmap
@@ -108,6 +122,7 @@ func (e *Exits) Load(source io.Reader) error {
 		return err
 	} else {
 		e.List = list
+		e.PortCache = make(map[uint16]intstab.IntervalSlice)
 		e.PreComputeTorList()
 	}
 
