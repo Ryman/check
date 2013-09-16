@@ -27,18 +27,24 @@ type Exits struct {
 	UpdateTime time.Time
 	ReloadChan chan os.Signal
 	TorIPs     map[string]bool
-	PortCache  map[uint16]intstab.IntervalSlice
+	PortCache  map[uint16][]*Rule
 }
 
-func (e *Exits) GetSortedIntervals(port uint16) (rules intstab.IntervalSlice, err error) {
+func (e *Exits) GetSortedIntervals(port uint16) (rules []*Rule, err error) {
 	rules, _ = e.PortCache[port]
 
 	if len(rules) < 1 {
-		rules, err = e.List.Intersect(port)
+		intervals, err := e.List.Intersect(port)
 		if err != nil {
-			return // TODO: Return error
+			return nil, err // TODO: Return error
 		}
-		sort.Sort(OrderedRuleIntervalSlice(rules))
+		sort.Sort(OrderedRuleIntervalSlice(intervals))
+
+		rules = make([]*Rule, len(intervals))
+		for i, val := range intervals {
+			rules[i] = val.Tag.(*Rule)
+		}
+
 		e.PortCache[port] = rules
 	}
 
@@ -54,9 +60,8 @@ func (e *Exits) IsAllowed(address net.IP, port uint16, cb func([]byte)) {
 	// Keep track of the last policy id to have gotten a result
 	// The sorted rules need to be ordered by Policy.Id (Ascending)
 	lastPolicyResult := -1
-	for _, i := range rules {
+	for _, r := range rules {
 		// TODO: Remove this type assertion? Seems to be triggering memmoves
-		r := i.Tag.(*Rule)
 		if lastPolicyResult >= r.ParentPolicy.Id {
 			continue
 		}
@@ -122,7 +127,7 @@ func (e *Exits) Load(source io.Reader) error {
 		return err
 	} else {
 		e.List = list
-		e.PortCache = make(map[uint16]intstab.IntervalSlice)
+		e.PortCache = make(map[uint16][]*Rule)
 		e.PreComputeTorList()
 	}
 
