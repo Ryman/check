@@ -26,6 +26,26 @@ type Rule struct {
 	Order             int
 }
 
+type MatchRule struct {
+	IsAccept          bool
+	IsAddressWildcard bool
+	AddressNewLine    []byte
+	PolicyId          int
+	IP                net.IP
+	IPNet             *net.IPNet
+}
+
+func (r *MatchRule) IsMatch(ip net.IP) bool {
+	if !r.IsAddressWildcard {
+		if r.IPNet != nil && !r.IPNet.Contains(ip) {
+			return false
+		} else {
+			return r.IP.Equal(ip)
+		}
+	}
+	return true
+}
+
 func (r *Rule) IsMatch(ip net.IP) bool {
 	if !r.IsAddressWildcard {
 		if r.IPNet != nil && !r.IPNet.Contains(ip) {
