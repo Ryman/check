@@ -21,14 +21,27 @@ for descriptor in parse_file("data/exit-addresses", "tordnsel 1.0"):
 server_descriptors = {}
 for descriptor in parse_file("data/all_descriptors", "server-descriptor 1.0"):
     server_descriptors[descriptor.fingerprint] = descriptor.exit_policy
-
+missing = 0
+already_have = 0
+ok = 0
+total = 0
 with open("data/exit-policies", "w") as exit_file:
     for router in parse_file("data/consensus",
                              "network-status-consensus-3 1.0"):
         if router.exit_policy.is_exiting_allowed():
             r = Router(router)
-            if router.fingerprint in exit_addresses:
+            if router.fingerprint in exit_addresses:    
+                if r.Address == exit_addresses[router.fingerprint]:
+                    print "Already have correct IP %s" % r.Address
+                    already_have += 1
+                else:
+                    print "OK %s" % r.Address
+                    ok += 1
                 r.Address = exit_addresses[router.fingerprint]
+            else:
+                print "Not found in exits: %s" % r.Address
+                missing += 1
+            total += 1
             if router.fingerprint in server_descriptors:
                 for x in server_descriptors[router.fingerprint]._get_rules():
                     is_address_wildcard = x.is_address_wildcard()
@@ -57,3 +70,9 @@ with open("data/exit-policies", "w") as exit_file:
                         "MaxPort": x.max_port
                     })
             exit_file.write(json.dumps(r.__dict__) + "\n")
+
+print ""
+print "Missing: %d" % missing
+print "Same: %d" % already_have
+print "OK(Updated): %d" % ok
+print "Total: %d" % total
