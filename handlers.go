@@ -27,10 +27,14 @@ type Page struct {
 func RootHandler(Layout *template.Template, Exits *Exits, Phttp *http.ServeMux) func(http.ResponseWriter, *http.Request) {
 
 	return func(w http.ResponseWriter, r *http.Request) {
-
 		// serve public files
 		if len(r.URL.Path) > 1 {
 			Phttp.ServeHTTP(w, r)
+			return
+		}
+
+		if r.Method == "HEAD" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -106,6 +110,11 @@ func RootHandler(Layout *template.Template, Exits *Exits, Phttp *http.ServeMux) 
 func BulkHandler(Layout *template.Template, Exits *Exits) func(http.ResponseWriter, *http.Request) {
 
 	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "HEAD" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
 		q := r.URL.Query()
 
 		ip := q.Get("ip")
